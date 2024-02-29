@@ -1,5 +1,10 @@
 package com.example.avjindersinghsekhon.minimaltodo.AddToDo;
 
+import static android.content.Context.INPUT_METHOD_SERVICE;
+import static android.content.Context.MODE_PRIVATE;
+import static androidx.appcompat.app.AppCompatActivity.RESULT_CANCELED;
+import static androidx.appcompat.app.AppCompatActivity.RESULT_OK;
+
 import android.animation.Animator;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -9,12 +14,6 @@ import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.NavUtils;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.SwitchCompat;
-import android.support.v7.widget.Toolbar;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.format.DateFormat;
@@ -28,15 +27,20 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.content.ClipboardManager;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.NavUtils;
 
 import com.example.avjindersinghsekhon.minimaltodo.Analytics.AnalyticsApplication;
 import com.example.avjindersinghsekhon.minimaltodo.AppDefault.AppDefaultFragment;
-import com.example.avjindersinghsekhon.minimaltodo.Main.MainActivity;
 import com.example.avjindersinghsekhon.minimaltodo.Main.MainFragment;
 import com.example.avjindersinghsekhon.minimaltodo.R;
 import com.example.avjindersinghsekhon.minimaltodo.Utility.ToDoItem;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
 import com.wdullaer.materialdatetimepicker.time.RadialPickerLayout;
 import com.wdullaer.materialdatetimepicker.time.TimePickerDialog;
@@ -44,11 +48,6 @@ import com.wdullaer.materialdatetimepicker.time.TimePickerDialog;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-
-import static android.app.Activity.RESULT_CANCELED;
-import static android.app.Activity.RESULT_OK;
-import static android.content.Context.INPUT_METHOD_SERVICE;
-import static android.content.Context.MODE_PRIVATE;
 
 public class AddToDoFragment extends AppDefaultFragment implements DatePickerDialog.OnDateSetListener, TimePickerDialog.OnTimeSetListener {
     private static final String TAG = "AddToDoFragment";
@@ -322,7 +321,7 @@ public class AddToDoFragment extends AppDefaultFragment implements DatePickerDia
                 if (theme.equals(MainFragment.DARKTHEME)) {
                     datePickerDialog.setThemeDark(true);
                 }
-                datePickerDialog.show(getActivity().getFragmentManager(), "DateFragment");
+                datePickerDialog.show(getActivity().getSupportFragmentManager(), "DateFragment");
 
             }
         });
@@ -349,7 +348,7 @@ public class AddToDoFragment extends AppDefaultFragment implements DatePickerDia
                 if (theme.equals(MainFragment.DARKTHEME)) {
                     timePickerDialog.setThemeDark(true);
                 }
-                timePickerDialog.show(getActivity().getFragmentManager(), "TimeFragment");
+                timePickerDialog.show(getActivity().getSupportFragmentManager(), "TimeFragment");
             }
         });
 

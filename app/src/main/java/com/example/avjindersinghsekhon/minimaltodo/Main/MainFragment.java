@@ -1,5 +1,9 @@
 package com.example.avjindersinghsekhon.minimaltodo.Main;
 
+import static android.content.Context.ALARM_SERVICE;
+import static android.content.Context.MODE_PRIVATE;
+import static androidx.appcompat.app.AppCompatActivity.RESULT_CANCELED;
+
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Intent;
@@ -7,14 +11,6 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
-import android.support.design.widget.CoordinatorLayout;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v7.widget.DefaultItemAnimator;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -26,6 +22,13 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.annotation.Nullable;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.amulyakhare.textdrawable.TextDrawable;
 import com.amulyakhare.textdrawable.util.ColorGenerator;
@@ -42,6 +45,8 @@ import com.example.avjindersinghsekhon.minimaltodo.Utility.RecyclerViewEmptySupp
 import com.example.avjindersinghsekhon.minimaltodo.Utility.StoreRetrieveData;
 import com.example.avjindersinghsekhon.minimaltodo.Utility.ToDoItem;
 import com.example.avjindersinghsekhon.minimaltodo.Utility.TodoNotificationService;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
 
 import org.json.JSONException;
 
@@ -49,10 +54,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-
-import static android.app.Activity.RESULT_CANCELED;
-import static android.content.Context.ALARM_SERVICE;
-import static android.content.Context.MODE_PRIVATE;
 
 public class MainFragment extends AppDefaultFragment {
     private RecyclerViewEmptySupport mRecyclerView;
