@@ -14,6 +14,9 @@ buildscript {
 }
 
 buildscript {
+    ext {
+        kotlin_version = '1.9.22'
+    }
     repositories {
         mavenCentral()
         maven {
@@ -24,6 +27,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.jakewharton:butterknife-gradle-plugin:8.5.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
