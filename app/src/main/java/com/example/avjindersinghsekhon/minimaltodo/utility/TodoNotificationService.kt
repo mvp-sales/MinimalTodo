@@ -20,7 +20,7 @@ class TodoNotificationService : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         intent?.let { intent ->
             val todoText = intent.getStringExtra(TODOTEXT)
-            val todoUUID = intent.getSerializableExtra(TODOUUID, UUID::class.java)
+            val todoUUID = intent.getSerializableExtra(TODOUUID) as? UUID
             Log.d("OskarSchindler", "onHandleIntent called")
             val manager = context?.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val i = Intent(context, ReminderActivity::class.java)

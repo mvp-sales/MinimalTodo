@@ -8,15 +8,18 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.app.NavUtils
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.BlendModeColorFilterCompat
+import androidx.core.graphics.BlendModeCompat
 import com.example.avjindersinghsekhon.minimaltodo.analytics.AnalyticsApplication
 import com.example.avjindersinghsekhon.minimaltodo.main.MainFragment
 import com.example.avjindersinghsekhon.minimaltodo.R
 
 class SettingsActivity : AppCompatActivity() {
-    var app: AnalyticsApplication? = null
+    private lateinit var app: AnalyticsApplication
     override fun onResume() {
         super.onResume()
-        app!!.send(this)
+        app.send("this")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,18 +31,16 @@ class SettingsActivity : AppCompatActivity() {
             setTheme(R.style.CustomStyle_DarkTheme)
         }
         super.onCreate(savedInstanceState)
-        //        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         setContentView(R.layout.activity_settings)
         val toolbar = findViewById<View>(R.id.toolbar) as Toolbar
         setSupportActionBar(toolbar)
-        val backArrow = resources.getDrawable(R.drawable.ic_back_arrow)
-        backArrow?.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
-        if (supportActionBar != null) {
-            supportActionBar!!.setDisplayHomeAsUpEnabled(true)
-            supportActionBar!!.setHomeAsUpIndicator(backArrow)
+        val backArrow = ResourcesCompat.getDrawable(resources, R.drawable.ic_back_arrow, getTheme())
+        backArrow?.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(Color.WHITE, BlendModeCompat.SRC_ATOP)
+        supportActionBar?.let {
+            it.setDisplayHomeAsUpEnabled(true)
+            it.setHomeAsUpIndicator(backArrow)
         }
-        val fm = supportFragmentManager
-        fm.beginTransaction().replace(R.id.mycontent, SettingsFragment()).commit()
+        supportFragmentManager.beginTransaction().replace(R.id.mycontent, SettingsFragment()).commit()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

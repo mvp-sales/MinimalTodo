@@ -11,16 +11,15 @@ import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentAboutBind
 
 class AboutFragment : Fragment() {
     private val appVersion = "0.1"
-    //private lateinit var app: AnalyticsApplication
     private lateinit var binding: FragmentAboutBinding
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        binding = FragmentAboutBinding.inflate(inflater, container, false)
-        return binding.root
+        return inflater.inflate(R.layout.fragment_about, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding = FragmentAboutBinding.bind(view)
         val app = requireActivity().application as AnalyticsApplication
         app.send("this")
         with(binding) {

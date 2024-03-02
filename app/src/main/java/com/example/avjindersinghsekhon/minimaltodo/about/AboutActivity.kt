@@ -37,7 +37,6 @@ class AboutActivity : AppDefaultActivity() {
         }
         super.onCreate(savedInstanceState)
         binding = AboutLayoutBinding.inflate(layoutInflater)
-        //        mId = (UUID)i.getSerializableExtra(TodoNotificationService.TODOUUID);
         val backArrow = ResourcesCompat.getDrawable(resources, R.drawable.ic_back_arrow, getTheme())
         backArrow?.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(Color.WHITE, BlendModeCompat.SRC_ATOP)
         toolbar = findViewById<View>(R.id.toolbar) as Toolbar

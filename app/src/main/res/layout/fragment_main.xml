@@ -6,7 +6,7 @@
               android:layout_height="match_parent">
 
     <!--<include layout="@layout/base_toolbar"/>-->
-    <androidx.coordinatorlayout.widget.CoordinatorLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/myCoordinatorLayout"
         android:layout_width="match_parent"
         android:gravity="center"
@@ -18,7 +18,11 @@
             android:orientation="vertical"
             android:gravity="center"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <ImageView
                 app:srcCompat="@drawable/empty_view_bg"
@@ -37,18 +41,15 @@
 
         </LinearLayout>
 
-
-        <!--<include layout="@layout/base_toolbar"/>-->
-
-
-        <!--</android.support.design.widget.AppBarLayout>-->
-
-
         <com.example.avjindersinghsekhon.minimaltodo.utility.RecyclerViewEmptySupport
             app:layout_behavior="@string/appbar_scrolling_view_behavior"
             android:id="@+id/toDoRecyclerView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -57,11 +58,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
-            app:layout_anchor="@id/myCoordinatorLayout"
-            app:layout_anchorGravity="bottom|right|end"
-
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             />
 
 
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>
