@@ -4,7 +4,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 
 class ItemTouchHelperClass(
-        private val adapter: ItemTouchHelperAdapter
+    private val adapter: ItemTouchHelperAdapter
 ) : ItemTouchHelper.Callback() {
     interface ItemTouchHelperAdapter {
         fun onItemMoved(fromPosition: Int, toPosition: Int)

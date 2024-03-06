@@ -49,15 +49,10 @@ import kotlinx.coroutines.launch
 import org.json.JSONException
 import java.io.IOException
 import java.util.Collections
-import java.util.Date
 
 @AndroidEntryPoint
 class MainFragment : AppDefaultFragment(), TodoItemListener {
-    private lateinit var toDoItemsArrayList: ArrayList<ToDoItem>
-    private lateinit var adapter: BasicListAdapter
     private lateinit var todoListAdapter: TodoListAdapter
-    private lateinit var storeRetrieveData: StoreRetrieveData
-    private lateinit var itemTouchHelper: ItemTouchHelper
     private lateinit var customRecyclerScrollViewListener: CustomRecyclerScrollViewListener
     private var theme: String? = "name_of_the_theme"
     private lateinit var app: AnalyticsApplication
@@ -85,15 +80,7 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
         sharedPreferences.edit {
             putBoolean(CHANGE_OCCURED, false)
         }
-        lifecycleScope.launch {
-            viewModel.todosFlow.onEach {
-                todoListAdapter = TodoListAdapter(it, requireContext(), this@MainFragment)
-            }
-        }
 
-        storeRetrieveData = StoreRetrieveData(requireContext(), FILENAME)
-        toDoItemsArrayList = getLocallyStoredData(storeRetrieveData)
-        adapter = BasicListAdapter(toDoItemsArrayList)
         //setAlarms()
         with(binding) {
             addToDoItemFAB.setOnClickListener {
@@ -113,20 +100,26 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
             toDoRecyclerView.layoutManager = LinearLayoutManager(context)
             customRecyclerScrollViewListener = object : CustomRecyclerScrollViewListener() {
                 override fun show() {
-                    addToDoItemFAB.animate().translationY(0f).setInterpolator(DecelerateInterpolator(2f)).start()
+                   // addToDoItemFAB.animate().translationY(0f).setInterpolator(DecelerateInterpolator(2f)).start()
                 }
 
                 override fun hide() {
-                    val lp = addToDoItemFAB.layoutParams as CoordinatorLayout.LayoutParams
-                    val fabMargin = lp.bottomMargin
-                    addToDoItemFAB.animate().translationY((addToDoItemFAB.height + fabMargin).toFloat()).setInterpolator(AccelerateInterpolator(2.0f)).start()
+                    //val lp = addToDoItemFAB.layoutParams as CoordinatorLayout.LayoutParams
+                    //val fabMargin = lp.bottomMargin
+                    //addToDoItemFAB.animate().translationY((addToDoItemFAB.height + fabMargin).toFloat()).setInterpolator(AccelerateInterpolator(2.0f)).start()
                 }
             }
+            todoListAdapter = TodoListAdapter(arrayListOf(), requireContext(), this@MainFragment)
+            val callback: ItemTouchHelper.Callback = ItemTouchHelperClass(todoListAdapter)
+            val itemTouchHelper = ItemTouchHelper(callback)
+            itemTouchHelper.attachToRecyclerView(binding.toDoRecyclerView)
             toDoRecyclerView.addOnScrollListener(customRecyclerScrollViewListener)
-            val callback: ItemTouchHelper.Callback = ItemTouchHelperClass(adapter)
-            itemTouchHelper = ItemTouchHelper(callback)
-            itemTouchHelper.attachToRecyclerView(toDoRecyclerView)
-            toDoRecyclerView.setAdapter(adapter)
+            toDoRecyclerView.adapter = todoListAdapter
+        }
+        lifecycleScope.launch {
+            viewModel.todosFlow.collect {
+                todoListAdapter.setData(it)
+            }
         }
     }
 
@@ -152,43 +145,10 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
 
          */
         if (requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE).getBoolean(RECREATE_ACTIVITY, false)) {
-            val editor = requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE).edit {
+            requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE).edit {
                 putBoolean(RECREATE_ACTIVITY, false)
             }
             requireActivity().recreate()
-        }
-    }
-
-    override fun onStart() {
-        app = requireActivity().application as AnalyticsApplication
-        super.onStart()
-        val sharedPreferences = requireActivity().getSharedPreferences(SHARED_PREF_DATA_SET_CHANGED, Context.MODE_PRIVATE)
-        if (sharedPreferences.getBoolean(CHANGE_OCCURED, false)) {
-            toDoItemsArrayList = getLocallyStoredData(storeRetrieveData)
-            adapter = BasicListAdapter(toDoItemsArrayList)
-            binding.toDoRecyclerView.adapter = adapter
-            setAlarms()
-            sharedPreferences.edit {
-                putBoolean(CHANGE_OCCURED, false)
-            }
-        }
-    }
-
-    private fun setAlarms() {
-        if (toDoItemsArrayList.isNotEmpty()) {
-
-            for (item in toDoItemsArrayList) {
-                if (item.hasReminder && item.toDoDate != null) {
-                    if (item.toDoDate!!.before(Date())) {
-                        item.toDoDate = null
-                        continue
-                    }
-                    val i = Intent(context, TodoNotificationService::class.java)
-                    i.putExtra(TodoNotificationService.TODOUUID, item.identifier)
-                    i.putExtra(TodoNotificationService.TODOTEXT, item.toDoText)
-                    createAlarm(i, item.identifier.hashCode(), item.toDoDate!!.time)
-                }
-            }
         }
     }
 
@@ -211,7 +171,7 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (resultCode != Activity.RESULT_CANCELED && requestCode == REQUEST_ID_TODO_ITEM) {
+        /*if (resultCode != Activity.RESULT_CANCELED && requestCode == REQUEST_ID_TODO_ITEM) {
             val item = data?.getSerializableExtra(TODOITEM) as? ToDoItem
             item?.let {
                 if (it.toDoText.isEmpty()) {
@@ -238,7 +198,7 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
             if (!existed) {
                 addToDataStore(item)
             }
-        }
+        }*/
     }
 
     private fun doesPendingIntentExist(i: Intent, requestCode: Int): Boolean {
@@ -259,130 +219,6 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
             val alarmManager = requireActivity().getSystemService(Context.ALARM_SERVICE) as AlarmManager
             alarmManager.cancel(pi)
             Log.d("OskarSchindler", "PI Cancelled " + doesPendingIntentExist(i, requestCode))
-        }
-    }
-
-    private fun addToDataStore(item: ToDoItem) {
-        toDoItemsArrayList.add(item)
-        adapter.notifyItemInserted(toDoItemsArrayList.size - 1)
-    }
-
-    inner class BasicListAdapter internal constructor(
-        private val items: ArrayList<ToDoItem>
-    ) : RecyclerView.Adapter<BasicListAdapter.ViewHolder?>(), ItemTouchHelperAdapter {
-        override fun onItemMoved(fromPosition: Int, toPosition: Int) {
-            if (fromPosition < toPosition) {
-                for (i in fromPosition until toPosition) {
-                    Collections.swap(items, i, i + 1)
-                }
-            } else {
-                for (i in fromPosition downTo toPosition + 1) {
-                    Collections.swap(items, i, i - 1)
-                }
-            }
-            notifyItemMoved(fromPosition, toPosition)
-        }
-
-        override fun onItemRemoved(position: Int) {
-            //Remove this line if not using Google Analytics
-            app.send("this", "Action", "Swiped Todo Away")
-            val justDeletedToDoItem = items.removeAt(position)
-            val indexOfDeletedToDoItem = position
-            val i = Intent(context, TodoNotificationService::class.java)
-            deleteAlarm(i, justDeletedToDoItem.identifier.hashCode())
-            notifyItemRemoved(position)
-            val toShow = "Todo"
-            Snackbar.make(binding.myCoordinatorLayout, "Deleted $toShow", Snackbar.LENGTH_LONG)
-                    .setAction("UNDO") {
-                        app.send("this", "Action", "UNDO Pressed")
-                        items.add(indexOfDeletedToDoItem, justDeletedToDoItem)
-                        if (justDeletedToDoItem.toDoDate != null && justDeletedToDoItem.hasReminder) {
-                            val intent = Intent(context, TodoNotificationService::class.java)
-                            intent.putExtra(TodoNotificationService.TODOTEXT, justDeletedToDoItem.toDoText)
-                            intent.putExtra(TodoNotificationService.TODOUUID, justDeletedToDoItem.identifier)
-                            createAlarm(intent, justDeletedToDoItem.identifier.hashCode(), justDeletedToDoItem.toDoDate!!.time)
-                        }
-                        notifyItemInserted(indexOfDeletedToDoItem)
-                    }
-                    .show()
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val v = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.list_circle_try, parent, false)
-            return ViewHolder(v)
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val item = items[position]
-            val sharedPreferences = requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE)
-            //Background color for each to-do item. Necessary for night/day mode
-            val bgColor: Int
-            //color of title text in our to-do item. White for night mode, dark gray for day mode
-            val todoTextColor: Int
-            if (sharedPreferences.getString(THEME_SAVED, LIGHTTHEME) == LIGHTTHEME) {
-                bgColor = Color.WHITE
-                todoTextColor = resources.getColor(R.color.secondary_text, context?.theme)
-            } else {
-                bgColor = Color.DKGRAY
-                todoTextColor = Color.WHITE
-            }
-            with(holder.binding) {
-                listItemLinearLayout.setBackgroundColor(bgColor)
-                if (item.hasReminder && item.toDoDate != null) {
-                    toDoListItemTextview.maxLines = 1
-                    todoListItemTimeTextView.visibility = View.VISIBLE
-                } else {
-                    todoListItemTimeTextView.visibility = View.GONE
-                    toDoListItemTextview.maxLines = 2
-                }
-                toDoListItemTextview.text = item.toDoText
-                toDoListItemTextview.setTextColor(todoTextColor)
-                val myDrawable = TextDrawable.builder()
-                        .textColor(Color.WHITE)
-                        .useFont(Typeface.DEFAULT)
-                        .toUpperCase()
-                        .buildRound(item.toDoText.substring(0, 1), item.todoColor)
-                toDoListItemColorImageView.setImageDrawable(myDrawable)
-                if (item.toDoDate != null) {
-                    val timeToShow = if (DateFormat.is24HourFormat(context)) {
-                        AddToDoFragment.formatDate(DATE_TIME_FORMAT_24_HOUR, item.toDoDate)
-                    } else {
-                        AddToDoFragment.formatDate(DATE_TIME_FORMAT_12_HOUR, item.toDoDate)
-                    }
-                    todoListItemTimeTextView.text = timeToShow
-                }
-            }
-
-        }
-
-        override fun getItemCount(): Int {
-            return items.size
-        }
-
-        @Suppress("deprecation")
-        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val binding: ListCircleTryBinding
-
-            init {
-                binding = ListCircleTryBinding.bind(view)
-                binding.root.setOnClickListener {
-                    val item = items[this@ViewHolder.adapterPosition]
-                    val i = Intent(context, AddToDoActivity::class.java)
-                    i.putExtra(TODOITEM, item)
-                    startActivityForResult(i, REQUEST_ID_TODO_ITEM)
-                }
-            }
-        }
-    }
-    override fun onPause() {
-        super.onPause()
-        try {
-            storeRetrieveData.saveToFile(toDoItemsArrayList)
-        } catch (e: JSONException) {
-            e.printStackTrace()
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
     }
 

@@ -8,6 +8,7 @@
     a white screen if our theme here is LightTheme. The screen is shown for
     about 1 second, but it's jarring if users have set Night Mode to true.
     -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:name=".analytics.AnalyticsApplication"
         android:allowBackup="true"

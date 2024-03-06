@@ -21,6 +21,11 @@ class RecyclerViewEmptySupport : RecyclerView {
             super.onItemRangeRemoved(positionStart, itemCount)
             showEmptyView()
         }
+
+        override fun onItemRangeChanged(positionStart: Int, itemCount: Int) {
+            super.onItemRangeChanged(positionStart, itemCount)
+            showEmptyView()
+        }
     }
 
     constructor(context: Context?) : super(context!!)

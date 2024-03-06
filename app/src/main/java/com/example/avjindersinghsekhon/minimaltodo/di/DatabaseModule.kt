@@ -3,6 +3,8 @@ package com.example.avjindersinghsekhon.minimaltodo.di
 import android.content.Context
 import androidx.room.Room
 import com.example.avjindersinghsekhon.minimaltodo.database.AppDatabase
+import com.example.avjindersinghsekhon.minimaltodo.repositories.TodoRepository
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

@@ -34,6 +34,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.avjindersinghsekhon.minimaltodo.R
 import com.example.avjindersinghsekhon.minimaltodo.analytics.AnalyticsApplication
 import com.example.avjindersinghsekhon.minimaltodo.appDefault.AppDefaultFragment
+import com.example.avjindersinghsekhon.minimaltodo.database.Todo
 import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentAddToDoBinding
 import com.example.avjindersinghsekhon.minimaltodo.main.MainFragment
 import com.example.avjindersinghsekhon.minimaltodo.main.MainViewModel
@@ -47,11 +48,12 @@ import java.util.UUID
 
 @AndroidEntryPoint
 class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener, TimePickerDialog.OnTimeSetListener {
-    private var userToDoItem: ToDoItem? = null
     private var theme: String? = null
     private lateinit var app: AnalyticsApplication
     private lateinit var binding: FragmentAddToDoBinding
     private val viewModel: AddTodoViewModel by activityViewModels()
+    private var reminderDate: Date? = null
+    private var todo: Todo? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_add_to_do, container, false)
@@ -87,23 +89,24 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             lifecycleScope.launch {
                 viewModel.getTodo(todoId).collect { todos ->
                     todos.firstOrNull()?.let {
+                        this@AddToDoFragment.todo = it
                         if (it.hasReminder && it.date != null) {
-                            setReminderTextView()
+                            setReminderTextView(it.date)
                             setEnterDateLayoutVisibleWithAnimations(true)
                         }
                         if (it.date == null) {
-                            binding.toDoHasDateSwitchCompat.isChecked = false
                             binding.newToDoDateTimeReminderTextView.visibility = View.INVISIBLE
                         }
+                        binding.toDoHasDateSwitchCompat.isChecked = it.hasReminder && it.date != null
+                        setEnterDateLayoutVisible(binding.toDoHasDateSwitchCompat.isChecked)
                         binding.userToDoEditText.requestFocus()
                         binding.userToDoEditText.setText(it.title)
                         binding.userToDoDescription.setText(it.description)
+                        setDateAndTimeEditText(it)
                     }
                 }
             }
         }
-
-        userToDoItem = requireActivity().intent.getSerializableExtra(MainFragment.TODOITEM) as? ToDoItem
 
         //Button for Copy to Clipboard=
         with(binding) {
@@ -127,53 +130,13 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
                 hideKeyboard(userToDoDescription)
             }
 
-            userToDoItem?.let {
-                if (it.hasReminder && it.toDoDate != null) {
-                    setReminderTextView()
-                    setEnterDateLayoutVisibleWithAnimations(true)
-                }
-                if (it.toDoDate == null) {
-                    toDoHasDateSwitchCompat.isChecked = false
-                    newToDoDateTimeReminderTextView.visibility = View.INVISIBLE
-                }
-                userToDoEditText.requestFocus()
-                userToDoEditText.setText(it.toDoText)
-                userToDoDescription.setText(it.toDoDescription)
-            }
-            val imm = this@AddToDoFragment.requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(view, InputMethodManager.HIDE_IMPLICIT_ONLY)
-            userToDoEditText.setSelection(userToDoEditText.length())
-            userToDoEditText.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                    userToDoItem?.toDoText = s.toString()
-                }
-
-                override fun afterTextChanged(s: Editable) {}
-            })
-            userToDoDescription.setText(userToDoItem?.toDoDescription)
-            userToDoDescription.setSelection(userToDoDescription.length())
-            userToDoDescription.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                    userToDoItem?.toDoDescription = s.toString()
-                }
-
-                override fun afterTextChanged(s: Editable) {}
-            })
-            setEnterDateLayoutVisible(toDoHasDateSwitchCompat.isChecked)
-            toDoHasDateSwitchCompat.isChecked = (userToDoItem?.hasReminder ?: false) && userToDoItem?.toDoDate != null
             toDoHasDateSwitchCompat.setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
                     app.send("this", "Action", "Reminder Set")
                 } else {
                     app.send("this", "Action", "Reminder Removed")
                 }
-                if (!isChecked) {
-                    userToDoItem?.toDoDate = null
-                }
-                userToDoItem?.hasReminder = isChecked
-                setDateAndTimeEditText()
+                //setDateAndTimeEditText()
                 setEnterDateLayoutVisibleWithAnimations(isChecked)
                 hideKeyboard(userToDoEditText)
                 hideKeyboard(userToDoDescription)
@@ -181,24 +144,29 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             makeToDoFloatingActionButton.setOnClickListener {
                 if (userToDoEditText.length() <= 0) {
                     userToDoEditText.error = getString(R.string.todo_error)
-                } else if (userToDoItem?.toDoDate != null && userToDoItem?.toDoDate!!.before(Date())) {
+                } else if (reminderDate != null && reminderDate!!.before(Date())) {
                     app.send("this", "Action", "Date in the Past")
                     makeResult(Activity.RESULT_CANCELED)
                 } else {
                     app.send("this", "Action", "Make Todo")
                     makeResult(Activity.RESULT_OK)
-                    requireActivity().finish()
+                    val todo = this@AddToDoFragment.todo ?: Todo()
+                    todo.title = userToDoEditText.text.toString()
+                    todo.description = userToDoDescription.text.toString()
+                    todo.hasReminder = toDoHasDateSwitchCompat.isChecked
+                    todo.date = reminderDate
+                    lifecycleScope.launch {
+                        viewModel.addTodo(todo).collect {
+                            requireActivity().finish()
+                        }
+                    }
                 }
                 hideKeyboard(userToDoEditText)
                 hideKeyboard(userToDoDescription)
             }
             newTodoDateEditText.setOnClickListener {
                 hideKeyboard(userToDoEditText)
-                val date = if (userToDoItem?.toDoDate != null) {
-                    userToDoItem?.toDoDate!!
-                } else {
-                    Date()
-                }
+                val date = reminderDate ?: Date()
                 val calendar = Calendar.getInstance()
                 calendar.time = date
                 val year = calendar[Calendar.YEAR]
@@ -216,11 +184,7 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             }
             newTodoTimeEditText.setOnClickListener {
                 hideKeyboard(userToDoEditText)
-                val date = if (userToDoItem?.toDoDate != null) {
-                    userToDoItem?.toDoDate!!
-                } else {
-                    Date()
-                }
+                val date = reminderDate ?: Date()
                 val calendar = Calendar.getInstance()
                 calendar.time = date
                 val hour = calendar[Calendar.HOUR_OF_DAY]
@@ -235,43 +199,39 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
                 )
                 timePickerDialog.show()
             }
-            setDateAndTimeEditText()
         }
     }
 
-    private fun setDateAndTimeEditText() {
-        userToDoItem?.let { userToDoItem ->
-            if (userToDoItem.hasReminder && userToDoItem.toDoDate != null) {
-                val userDate = formatDate("d MMM, yyyy", userToDoItem.toDoDate)
-                val formatToUse = if (DateFormat.is24HourFormat(context)) {
-                    "k:mm"
-                } else {
-                    "h:mm a"
-                }
-                val userTime = formatDate(formatToUse, userToDoItem.toDoDate)
-                binding.newTodoTimeEditText.setText(userTime)
-                binding.newTodoDateEditText.setText(userDate)
+    private fun setDateAndTimeEditText(todo: Todo) {
+        if (todo.hasReminder && todo.date != null) {
+            val userDate = formatDate("d MMM, yyyy", todo.date)
+            val formatToUse = if (DateFormat.is24HourFormat(context)) {
+                "k:mm"
             } else {
-                binding.newTodoDateEditText.setText(getString(R.string.date_reminder_default))
-                val time24 = DateFormat.is24HourFormat(context)
-                val cal = Calendar.getInstance()
-                if (time24) {
-                    cal[Calendar.HOUR_OF_DAY] = cal[Calendar.HOUR_OF_DAY] + 1
-                } else {
-                    cal[Calendar.HOUR] = cal[Calendar.HOUR] + 1
-                }
-                cal[Calendar.MINUTE] = 0
-                userToDoItem.toDoDate = cal.time
-                Log.d("OskarSchindler", "Imagined Date: ${userToDoItem.toDoDate}")
-                val timeString = if (time24) {
-                    formatDate("k:mm", userToDoItem.toDoDate)
-                } else {
-                    formatDate("h:mm a", userToDoItem.toDoDate)
-                }
-                binding.newTodoTimeEditText.setText(timeString)
+                "h:mm a"
             }
+            val userTime = formatDate(formatToUse, todo.date)
+            binding.newTodoTimeEditText.setText(userTime)
+            binding.newTodoDateEditText.setText(userDate)
+        } else {
+            binding.newTodoDateEditText.setText(getString(R.string.date_reminder_default))
+            val time24 = DateFormat.is24HourFormat(context)
+            val cal = Calendar.getInstance()
+            if (time24) {
+                cal[Calendar.HOUR_OF_DAY] = cal[Calendar.HOUR_OF_DAY] + 1
+            } else {
+                cal[Calendar.HOUR] = cal[Calendar.HOUR] + 1
+            }
+            cal[Calendar.MINUTE] = 0
+            reminderDate = todo.date
+            Log.d("OskarSchindler", "Imagined Date: ${todo.date}")
+            val timeString = if (time24) {
+                formatDate("k:mm", todo.date)
+            } else {
+                formatDate("h:mm a", todo.date)
+            }
+            binding.newTodoTimeEditText.setText(timeString)
         }
-
     }
 
     private fun hideKeyboard(et: EditText?) {
@@ -287,8 +247,8 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             //    Toast.makeText(this, "My time-machine is a bit rusty", Toast.LENGTH_SHORT).show();
             return
         }
-        if (userToDoItem?.toDoDate != null) {
-            calendar.time = userToDoItem?.toDoDate!!
+        if (reminderDate != null) {
+            calendar.time = reminderDate!!
         }
         val hour = if (DateFormat.is24HourFormat(context)) {
             calendar[Calendar.HOUR_OF_DAY]
@@ -297,42 +257,42 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
         }
         val minute = calendar[Calendar.MINUTE]
         calendar[year, month, day, hour] = minute
-        userToDoItem?.toDoDate = calendar.time
-        setReminderTextView()
-        setDateEditText()
+        reminderDate = calendar.time
+        setReminderTextView(reminderDate)
+        setDateEditText(reminderDate!!)
     }
 
     private fun setTime(hour: Int, minute: Int) {
         val calendar = Calendar.getInstance()
-        if (userToDoItem?.toDoDate != null) {
-            calendar.time = userToDoItem?.toDoDate!!
+        if (reminderDate != null) {
+            calendar.time = reminderDate!!
         }
         val year = calendar[Calendar.YEAR]
         val month = calendar[Calendar.MONTH]
         val day = calendar[Calendar.DAY_OF_MONTH]
         Log.d("OskarSchindler", "Time set: $hour")
         calendar[year, month, day, hour, minute] = 0
-        userToDoItem?.toDoDate = calendar.time
-        setReminderTextView()
-        setTimeEditText()
+        reminderDate = calendar.time
+        setReminderTextView(reminderDate)
+        setTimeEditText(reminderDate!!)
     }
 
-    private fun setDateEditText() {
+    private fun setDateEditText(date: Date) {
         val dateFormat = "d MMM, yyyy"
-        binding.newTodoDateEditText.setText(formatDate(dateFormat, userToDoItem?.toDoDate))
+        binding.newTodoDateEditText.setText(formatDate(dateFormat, date))
     }
 
-    private fun setTimeEditText() {
+    private fun setTimeEditText(date: Date) {
         val dateFormat = if (DateFormat.is24HourFormat(context)) {
             "k:mm"
         } else {
             "h:mm a"
         }
-        binding.newTodoTimeEditText.setText(formatDate(dateFormat, userToDoItem?.toDoDate))
+        binding.newTodoTimeEditText.setText(formatDate(dateFormat, date))
     }
 
-    private fun setReminderTextView() {
-        userToDoItem?.toDoDate?.let { userReminderDate ->
+    private fun setReminderTextView(todoDate: Date?) {
+        todoDate?.let { userReminderDate ->
             with(binding) {
                 newToDoDateTimeReminderTextView.visibility = View.VISIBLE
                 if (userReminderDate.before(Date())) {
@@ -362,7 +322,7 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
     private fun makeResult(result: Int) {
         Log.d(TAG, "makeResult - ok : in")
         val i = Intent()
-        i.putExtra(MainFragment.TODOITEM, userToDoItem)
+        //i.putExtra(MainFragment.TODOITEM, userToDoItem)
         requireActivity().setResult(result, i)
     }
 
@@ -394,7 +354,7 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
 
     private fun setEnterDateLayoutVisibleWithAnimations(checked: Boolean) {
         if (checked) {
-            setReminderTextView()
+            setReminderTextView(null)
             binding.toDoEnterDateLinearLayout.animate().alpha(1.0f).setDuration(500).setListener(
                     object : Animator.AnimatorListener {
                         override fun onAnimationStart(animation: Animator) {

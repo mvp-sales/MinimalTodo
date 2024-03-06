@@ -21,11 +21,15 @@ import jahirfiquitiva.libs.textdrawable.TextDrawable
 import java.util.Collections
 
 class TodoListAdapter(
-    private val items: List<Todo>,
+    private var items: List<Todo>,
     private val context: Context,
     private val listener: TodoItemListener
 ): RecyclerView.Adapter<TodoListAdapter.ViewHolder>(), ItemTouchHelperClass.ItemTouchHelperAdapter {
 
+   fun setData(items: List<Todo>) {
+       this.items = items
+       notifyDataSetChanged()
+   }
     override fun onItemMoved(fromPosition: Int, toPosition: Int) {
         if (fromPosition < toPosition) {
             for (i in fromPosition until toPosition) {
