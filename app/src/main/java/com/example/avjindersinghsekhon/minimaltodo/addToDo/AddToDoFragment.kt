@@ -29,22 +29,29 @@ import androidx.core.app.NavUtils
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.BlendModeColorFilterCompat
 import androidx.core.graphics.BlendModeCompat
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import com.example.avjindersinghsekhon.minimaltodo.R
 import com.example.avjindersinghsekhon.minimaltodo.analytics.AnalyticsApplication
 import com.example.avjindersinghsekhon.minimaltodo.appDefault.AppDefaultFragment
 import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentAddToDoBinding
 import com.example.avjindersinghsekhon.minimaltodo.main.MainFragment
+import com.example.avjindersinghsekhon.minimaltodo.main.MainViewModel
 import com.example.avjindersinghsekhon.minimaltodo.utility.ToDoItem
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.util.UUID
 
+@AndroidEntryPoint
 class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener, TimePickerDialog.OnTimeSetListener {
-    private var combinationText: String? = null
     private var userToDoItem: ToDoItem? = null
     private var theme: String? = null
     private lateinit var app: AnalyticsApplication
     private lateinit var binding: FragmentAddToDoBinding
+    private val viewModel: AddTodoViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_add_to_do, container, false)
@@ -76,6 +83,26 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             }
         }
 
+        (requireActivity().intent.getSerializableExtra(AddToDoActivity.TODO_ID) as? UUID)?.let {  todoId ->
+            lifecycleScope.launch {
+                viewModel.getTodo(todoId).collect { todos ->
+                    todos.firstOrNull()?.let {
+                        if (it.hasReminder && it.date != null) {
+                            setReminderTextView()
+                            setEnterDateLayoutVisibleWithAnimations(true)
+                        }
+                        if (it.date == null) {
+                            binding.toDoHasDateSwitchCompat.isChecked = false
+                            binding.newToDoDateTimeReminderTextView.visibility = View.INVISIBLE
+                        }
+                        binding.userToDoEditText.requestFocus()
+                        binding.userToDoEditText.setText(it.title)
+                        binding.userToDoDescription.setText(it.description)
+                    }
+                }
+            }
+        }
+
         userToDoItem = requireActivity().intent.getSerializableExtra(MainFragment.TODOITEM) as? ToDoItem
 
         //Button for Copy to Clipboard=
@@ -89,7 +116,7 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
                 val toDoTextContainer = userToDoEditText.text.toString()
                 val toDoTextBodyDescriptionContainer = userToDoDescription.text.toString()
                 val clipboard = requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                combinationText = "Title : $toDoTextContainer\nDescription : $toDoTextBodyDescriptionContainer\n -Copied From MinimalToDo"
+                val combinationText = "Title : $toDoTextContainer\nDescription : $toDoTextBodyDescriptionContainer\n -Copied From MinimalToDo"
                 val clip = ClipData.newPlainText("text", combinationText)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(requireContext(), "Copied To Clipboard!", Toast.LENGTH_SHORT).show()

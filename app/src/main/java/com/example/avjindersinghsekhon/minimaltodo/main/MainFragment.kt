@@ -16,7 +16,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.content.edit
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -27,6 +31,7 @@ import com.example.avjindersinghsekhon.minimaltodo.addToDo.AddToDoActivity
 import com.example.avjindersinghsekhon.minimaltodo.addToDo.AddToDoFragment
 import com.example.avjindersinghsekhon.minimaltodo.analytics.AnalyticsApplication
 import com.example.avjindersinghsekhon.minimaltodo.appDefault.AppDefaultFragment
+import com.example.avjindersinghsekhon.minimaltodo.database.Todo
 import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentMainBinding
 import com.example.avjindersinghsekhon.minimaltodo.databinding.ListCircleTryBinding
 import com.example.avjindersinghsekhon.minimaltodo.reminder.ReminderFragment
@@ -37,21 +42,27 @@ import com.example.avjindersinghsekhon.minimaltodo.utility.StoreRetrieveData
 import com.example.avjindersinghsekhon.minimaltodo.utility.ToDoItem
 import com.example.avjindersinghsekhon.minimaltodo.utility.TodoNotificationService
 import com.google.android.material.snackbar.Snackbar
+import dagger.hilt.android.AndroidEntryPoint
 import jahirfiquitiva.libs.textdrawable.TextDrawable
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.json.JSONException
 import java.io.IOException
 import java.util.Collections
 import java.util.Date
 
-class MainFragment : AppDefaultFragment() {
+@AndroidEntryPoint
+class MainFragment : AppDefaultFragment(), TodoItemListener {
     private lateinit var toDoItemsArrayList: ArrayList<ToDoItem>
     private lateinit var adapter: BasicListAdapter
+    private lateinit var todoListAdapter: TodoListAdapter
     private lateinit var storeRetrieveData: StoreRetrieveData
     private lateinit var itemTouchHelper: ItemTouchHelper
     private lateinit var customRecyclerScrollViewListener: CustomRecyclerScrollViewListener
     private var theme: String? = "name_of_the_theme"
     private lateinit var app: AnalyticsApplication
     private lateinit var binding: FragmentMainBinding
+    private val viewModel: MainViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return inflater.inflate(R.layout.fragment_main, container, false)
@@ -71,13 +82,19 @@ class MainFragment : AppDefaultFragment() {
         }
         this.requireActivity().setTheme(mTheme)
         val sharedPreferences = requireActivity().getSharedPreferences(SHARED_PREF_DATA_SET_CHANGED, Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putBoolean(CHANGE_OCCURED, false)
-        editor.apply()
+        sharedPreferences.edit {
+            putBoolean(CHANGE_OCCURED, false)
+        }
+        lifecycleScope.launch {
+            viewModel.todosFlow.onEach {
+                todoListAdapter = TodoListAdapter(it, requireContext(), this@MainFragment)
+            }
+        }
+
         storeRetrieveData = StoreRetrieveData(requireContext(), FILENAME)
         toDoItemsArrayList = getLocallyStoredData(storeRetrieveData)
         adapter = BasicListAdapter(toDoItemsArrayList)
-        setAlarms()
+        //setAlarms()
         with(binding) {
             addToDoItemFAB.setOnClickListener {
                 app.send("this", "Action", "FAB pressed")
@@ -118,9 +135,9 @@ class MainFragment : AppDefaultFragment() {
         app.send("this")
         val sharedPreferences = requireActivity().getSharedPreferences(SHARED_PREF_DATA_SET_CHANGED, Context.MODE_PRIVATE)
         if (sharedPreferences.getBoolean(ReminderFragment.EXIT, false)) {
-            val editor = sharedPreferences.edit()
-            editor.putBoolean(ReminderFragment.EXIT, false)
-            editor.apply()
+            sharedPreferences.edit {
+                putBoolean(ReminderFragment.EXIT, false)
+            }
             requireActivity().finish()
         }
         /*
@@ -135,9 +152,9 @@ class MainFragment : AppDefaultFragment() {
 
          */
         if (requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE).getBoolean(RECREATE_ACTIVITY, false)) {
-            val editor = requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE).edit()
-            editor.putBoolean(RECREATE_ACTIVITY, false)
-            editor.apply()
+            val editor = requireActivity().getSharedPreferences(THEME_PREFERENCES, Context.MODE_PRIVATE).edit {
+                putBoolean(RECREATE_ACTIVITY, false)
+            }
             requireActivity().recreate()
         }
     }
@@ -151,9 +168,9 @@ class MainFragment : AppDefaultFragment() {
             adapter = BasicListAdapter(toDoItemsArrayList)
             binding.toDoRecyclerView.adapter = adapter
             setAlarms()
-            val editor = sharedPreferences.edit()
-            editor.putBoolean(CHANGE_OCCURED, false)
-            editor.apply()
+            sharedPreferences.edit {
+                putBoolean(CHANGE_OCCURED, false)
+            }
         }
     }
 
@@ -376,6 +393,45 @@ class MainFragment : AppDefaultFragment() {
 
     override fun layoutRes(): Int {
         return R.layout.fragment_main
+    }
+
+    override fun openTodo(item: Todo) {
+        val i = Intent(context, AddToDoActivity::class.java)
+        i.putExtra(AddToDoActivity.TODO_ID, item.identifier)
+        requireActivity().startActivity(i)
+        //i.putExtra(MainFragment.TODOITEM, item)
+        //startActivityForResult(i, MainFragment.REQUEST_ID_TODO_ITEM)
+    }
+
+    override fun removeTodo(item: Todo) {
+        /*val justDeletedToDoItem = items.removeAt(position)
+        val indexOfDeletedToDoItem = position
+        val i = Intent(context, TodoNotificationService::class.java)
+        deleteAlarm(i, justDeletedToDoItem.identifier.hashCode())
+        notifyItemRemoved(position)
+        val toShow = "Todo"
+        Snackbar.make(binding.myCoordinatorLayout, "Deleted $toShow", Snackbar.LENGTH_LONG)
+                .setAction("UNDO") {
+                    app.send("this", "Action", "UNDO Pressed")
+                    items.add(indexOfDeletedToDoItem, justDeletedToDoItem)
+                    if (justDeletedToDoItem.toDoDate != null && justDeletedToDoItem.hasReminder) {
+                        val intent = Intent(context, TodoNotificationService::class.java)
+                        intent.putExtra(TodoNotificationService.TODOTEXT, justDeletedToDoItem.toDoText)
+                        intent.putExtra(TodoNotificationService.TODOUUID, justDeletedToDoItem.identifier)
+                        createAlarm(intent, justDeletedToDoItem.identifier.hashCode(), justDeletedToDoItem.toDoDate!!.time)
+                    }
+                    notifyItemInserted(indexOfDeletedToDoItem)
+                }
+                .show()*/
+        lifecycleScope.launch {
+            viewModel.deleteTodo(item).collect {
+                Toast.makeText(
+                    this@MainFragment.requireContext(),
+                    "Deleted ${item.title}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     companion object {

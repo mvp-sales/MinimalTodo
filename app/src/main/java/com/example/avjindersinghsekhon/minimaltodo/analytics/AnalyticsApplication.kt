@@ -2,13 +2,23 @@ package com.example.avjindersinghsekhon.minimaltodo.analytics
 
 import android.annotation.SuppressLint
 import android.app.Application
+import androidx.room.Room
+import com.example.avjindersinghsekhon.minimaltodo.database.AppDatabase
+import dagger.hilt.android.HiltAndroidApp
 
 @SuppressLint("VisibleForTests")
+@HiltAndroidApp
 class AnalyticsApplication : Application() {
     //private lateinit var tracker: Tracker
+    private lateinit var db: AppDatabase
 
     override fun onCreate() {
         super.onCreate()
+        db = Room.databaseBuilder(
+            this,
+            AppDatabase::class.java,
+            "db-todo"
+        ).build()
         /*val analytics = GoogleAnalytics.getInstance(this)
 
         /*R.xml.app_tracker contains my Analytics code
