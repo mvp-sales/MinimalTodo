@@ -2,14 +2,33 @@ package com.example.avjindersinghsekhon.minimaltodo.analytics
 
 import android.annotation.SuppressLint
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
 import androidx.room.Room
+import androidx.work.Configuration
 import com.example.avjindersinghsekhon.minimaltodo.database.AppDatabase
+import dagger.hilt.EntryPoint
+import dagger.hilt.EntryPoints
+import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 
 @SuppressLint("VisibleForTests")
 @HiltAndroidApp
-class AnalyticsApplication : Application() {
+class AnalyticsApplication : Application(), Configuration.Provider {
     //private lateinit var tracker: Tracker
+    //@Inject lateinit var workerFactory: HiltWorkerFactory
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface HiltWorkerFactoryEntryPoint {
+        fun workerFactory(): HiltWorkerFactory
+    }
+
+
+    override val workManagerConfiguration =
+            Configuration.Builder()
+                    .setWorkerFactory(EntryPoints.get(this, HiltWorkerFactoryEntryPoint::class.java).workerFactory())
+                    .build()
 
     override fun onCreate() {
         super.onCreate()

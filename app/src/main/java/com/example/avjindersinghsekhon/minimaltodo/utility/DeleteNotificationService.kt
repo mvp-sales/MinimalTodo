@@ -2,55 +2,39 @@ package com.example.avjindersinghsekhon.minimaltodo.utility
 
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
-import android.content.Intent
+import androidx.core.content.edit
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.example.avjindersinghsekhon.minimaltodo.main.MainFragment
+import com.example.avjindersinghsekhon.minimaltodo.repositories.TodoRepository
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import java.util.UUID
 
-class DeleteNotificationService(
-        appContext: Context,
-        workerParams: WorkerParameters
-): Worker(appContext, workerParams) {
-    private lateinit var storeRetrieveData: StoreRetrieveData
-    private lateinit var toDoItems: ArrayList<ToDoItem>
+@HiltWorker
+class DeleteNotificationService @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val repository: TodoRepository
+): CoroutineWorker(appContext, workerParams) {
 
-    override fun doWork(): Result {
-        storeRetrieveData = StoreRetrieveData(applicationContext, MainFragment.FILENAME)
-
-        val todoID = inputData.getString(TodoNotificationService.TODOUUID)
-        toDoItems = loadData()
-        if (toDoItems.isNotEmpty()) {
-            toDoItems.firstOrNull { it.identifier.toString() == todoID }?.let {
-                toDoItems.remove(it)
+    override suspend fun doWork(): Result {
+        inputData.getString(TodoNotificationReceiver.TODOUUID)?.let {
+            val todoId = UUID.fromString(it)
+            repository.deleteById(todoId).collect {
                 dataChanged()
-                saveData()
             }
+            return Result.success()
         }
         return Result.success()
     }
 
     private fun dataChanged() {
         val sharedPreferences = applicationContext.getSharedPreferences(MainFragment.SHARED_PREF_DATA_SET_CHANGED, MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putBoolean(MainFragment.CHANGE_OCCURED, true)
-        editor.apply()
-    }
-
-    private fun saveData() {
-        try {
-            storeRetrieveData.saveToFile(toDoItems)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        sharedPreferences.edit {
+            putBoolean(MainFragment.CHANGE_OCCURED, true)
         }
-    }
-
-    private fun loadData(): ArrayList<ToDoItem> {
-        try {
-            return storeRetrieveData.loadFromFile()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return arrayListOf()
     }
 }

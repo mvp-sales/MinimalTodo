@@ -1,57 +1,40 @@
 package com.example.avjindersinghsekhon.minimaltodo.main
 
-import android.app.Activity
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
-import android.text.format.DateFormat
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AccelerateInterpolator
-import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
-import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.edit
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.example.avjindersinghsekhon.minimaltodo.R
 import com.example.avjindersinghsekhon.minimaltodo.about.AboutActivity
 import com.example.avjindersinghsekhon.minimaltodo.addToDo.AddToDoActivity
-import com.example.avjindersinghsekhon.minimaltodo.addToDo.AddToDoFragment
 import com.example.avjindersinghsekhon.minimaltodo.analytics.AnalyticsApplication
 import com.example.avjindersinghsekhon.minimaltodo.appDefault.AppDefaultFragment
 import com.example.avjindersinghsekhon.minimaltodo.database.Todo
 import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentMainBinding
-import com.example.avjindersinghsekhon.minimaltodo.databinding.ListCircleTryBinding
 import com.example.avjindersinghsekhon.minimaltodo.reminder.ReminderFragment
 import com.example.avjindersinghsekhon.minimaltodo.settings.SettingsActivity
 import com.example.avjindersinghsekhon.minimaltodo.utility.ItemTouchHelperClass
-import com.example.avjindersinghsekhon.minimaltodo.utility.ItemTouchHelperClass.ItemTouchHelperAdapter
-import com.example.avjindersinghsekhon.minimaltodo.utility.StoreRetrieveData
-import com.example.avjindersinghsekhon.minimaltodo.utility.ToDoItem
-import com.example.avjindersinghsekhon.minimaltodo.utility.TodoNotificationService
-import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
-import jahirfiquitiva.libs.textdrawable.TextDrawable
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import org.json.JSONException
-import java.io.IOException
-import java.util.Collections
 
 @AndroidEntryPoint
-class MainFragment : AppDefaultFragment(), TodoItemListener {
+class MainFragment : AppDefaultFragment(), TodoItemListener, MenuProvider {
     private lateinit var todoListAdapter: TodoListAdapter
     private lateinit var customRecyclerScrollViewListener: CustomRecyclerScrollViewListener
     private var theme: String? = "name_of_the_theme"
@@ -81,15 +64,14 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
             putBoolean(CHANGE_OCCURED, false)
         }
 
+        requireActivity().addMenuProvider(this, viewLifecycleOwner)
+
         //setAlarms()
         with(binding) {
             addToDoItemFAB.setOnClickListener {
                 app.send("this", "Action", "FAB pressed")
                 val newTodo = Intent(context, AddToDoActivity::class.java)
-                val item = ToDoItem("", "", false, null)
-                item.todoColor = Color.BLACK
-                newTodo.putExtra(TODOITEM, item)
-                startActivityForResult(newTodo, REQUEST_ID_TODO_ITEM)
+                startActivity(newTodo)
             }
             if (theme == LIGHTTHEME) {
                 toDoRecyclerView.setBackgroundColor(resources.getColor(R.color.primary_lightest))
@@ -152,25 +134,27 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
         }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.menu_main, menu)
+    }
+
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        return when (menuItem.itemId) {
             R.id.aboutMeMenuItem -> {
                 val i = Intent(context, AboutActivity::class.java)
                 startActivity(i)
                 true
             }
-
             R.id.preferences -> {
                 val intent = Intent(context, SettingsActivity::class.java)
                 startActivity(intent)
                 true
             }
-
-            else -> super.onOptionsItemSelected(item)
+            else -> false
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    //override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         /*if (resultCode != Activity.RESULT_CANCELED && requestCode == REQUEST_ID_TODO_ITEM) {
             val item = data?.getSerializableExtra(TODOITEM) as? ToDoItem
             item?.let {
@@ -199,7 +183,7 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
                 addToDataStore(item)
             }
         }*/
-    }
+    //}
 
     private fun doesPendingIntentExist(i: Intent, requestCode: Int): Boolean {
         val pi = PendingIntent.getService(requireContext(), requestCode, i, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
@@ -235,8 +219,6 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
         val i = Intent(context, AddToDoActivity::class.java)
         i.putExtra(AddToDoActivity.TODO_ID, item.identifier)
         requireActivity().startActivity(i)
-        //i.putExtra(MainFragment.TODOITEM, item)
-        //startActivityForResult(i, MainFragment.REQUEST_ID_TODO_ITEM)
     }
 
     override fun removeTodo(item: Todo) {
@@ -283,16 +265,6 @@ class MainFragment : AppDefaultFragment(), TodoItemListener {
         const val THEME_SAVED = "com.avjindersekhon.savedtheme"
         const val DARKTHEME = "com.avjindersekon.darktheme"
         const val LIGHTTHEME = "com.avjindersekon.lighttheme"
-        fun getLocallyStoredData(storeRetrieveData: StoreRetrieveData): ArrayList<ToDoItem> {
-            try {
-                return storeRetrieveData.loadFromFile()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            } catch (e: JSONException) {
-                e.printStackTrace()
-            }
-            return arrayListOf()
-        }
 
         fun newInstance(): MainFragment {
             return MainFragment()

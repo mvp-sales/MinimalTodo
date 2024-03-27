@@ -1,20 +1,22 @@
 package com.example.avjindersinghsekhon.minimaltodo.addToDo
 
 import android.animation.Animator
-import android.app.Activity
+import android.app.AlarmManager
 import android.app.DatePickerDialog
+import android.app.PendingIntent
 import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.text.format.DateFormat
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -29,6 +31,7 @@ import androidx.core.app.NavUtils
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.BlendModeColorFilterCompat
 import androidx.core.graphics.BlendModeCompat
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.avjindersinghsekhon.minimaltodo.R
@@ -37,17 +40,16 @@ import com.example.avjindersinghsekhon.minimaltodo.appDefault.AppDefaultFragment
 import com.example.avjindersinghsekhon.minimaltodo.database.Todo
 import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentAddToDoBinding
 import com.example.avjindersinghsekhon.minimaltodo.main.MainFragment
-import com.example.avjindersinghsekhon.minimaltodo.main.MainViewModel
-import com.example.avjindersinghsekhon.minimaltodo.utility.ToDoItem
+import com.example.avjindersinghsekhon.minimaltodo.utility.TodoNotificationReceiver
+import com.example.avjindersinghsekhon.minimaltodo.utility.getUUIDExtra
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import java.util.UUID
 
 @AndroidEntryPoint
-class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener, TimePickerDialog.OnTimeSetListener {
+class AddToDoFragment : AppDefaultFragment(), MenuProvider, DatePickerDialog.OnDateSetListener, TimePickerDialog.OnTimeSetListener {
     private var theme: String? = null
     private lateinit var app: AnalyticsApplication
     private lateinit var binding: FragmentAddToDoBinding
@@ -71,6 +73,8 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             requireActivity().setTheme(R.style.CustomStyle_DarkTheme)
         }
 
+        requireActivity().addMenuProvider(this, viewLifecycleOwner)
+
         //Show an X in place of <-
         val cross = ResourcesCompat.getDrawable(resources, R.drawable.ic_clear_white_24dp, requireContext().theme)
         cross?.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(resources.getColor(R.color.icons, requireContext().theme), BlendModeCompat.SRC_ATOP)
@@ -85,25 +89,23 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
             }
         }
 
-        (requireActivity().intent.getSerializableExtra(AddToDoActivity.TODO_ID) as? UUID)?.let {  todoId ->
+        (requireActivity().intent.getUUIDExtra(AddToDoActivity.TODO_ID))?.let { todoId ->
             lifecycleScope.launch {
-                viewModel.getTodo(todoId).collect { todos ->
-                    todos.firstOrNull()?.let {
-                        this@AddToDoFragment.todo = it
-                        if (it.hasReminder && it.date != null) {
-                            setReminderTextView(it.date)
-                            setEnterDateLayoutVisibleWithAnimations(true)
-                        }
-                        if (it.date == null) {
-                            binding.newToDoDateTimeReminderTextView.visibility = View.INVISIBLE
-                        }
-                        binding.toDoHasDateSwitchCompat.isChecked = it.hasReminder && it.date != null
-                        setEnterDateLayoutVisible(binding.toDoHasDateSwitchCompat.isChecked)
-                        binding.userToDoEditText.requestFocus()
-                        binding.userToDoEditText.setText(it.title)
-                        binding.userToDoDescription.setText(it.description)
-                        setDateAndTimeEditText(it)
+                viewModel.getTodo(todoId).collect {
+                    this@AddToDoFragment.todo = it
+                    if (it.hasReminder && it.date != null) {
+                        setReminderTextView(it.date)
+                        setEnterDateLayoutVisibleWithAnimations(true)
                     }
+                    if (it.date == null) {
+                        binding.newToDoDateTimeReminderTextView.visibility = View.INVISIBLE
+                    }
+                    binding.toDoHasDateSwitchCompat.isChecked = it.hasReminder && it.date != null
+                    setEnterDateLayoutVisible(binding.toDoHasDateSwitchCompat.isChecked)
+                    binding.userToDoEditText.requestFocus()
+                    binding.userToDoEditText.setText(it.title)
+                    binding.userToDoDescription.setText(it.description)
+                    setDateAndTimeEditText(it)
                 }
             }
         }
@@ -146,10 +148,9 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
                     userToDoEditText.error = getString(R.string.todo_error)
                 } else if (reminderDate != null && reminderDate!!.before(Date())) {
                     app.send("this", "Action", "Date in the Past")
-                    makeResult(Activity.RESULT_CANCELED)
+                    Toast.makeText(requireContext(), "Reminder date in the past!", Toast.LENGTH_LONG).show()
                 } else {
                     app.send("this", "Action", "Make Todo")
-                    makeResult(Activity.RESULT_OK)
                     val todo = this@AddToDoFragment.todo ?: Todo()
                     todo.title = userToDoEditText.text.toString()
                     todo.description = userToDoDescription.text.toString()
@@ -157,6 +158,7 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
                     todo.date = reminderDate
                     lifecycleScope.launch {
                         viewModel.addTodo(todo).collect {
+                            createAlarm(todo)
                             requireActivity().finish()
                         }
                     }
@@ -319,26 +321,43 @@ class AddToDoFragment : AppDefaultFragment(), DatePickerDialog.OnDateSetListener
         }
     }
 
-    private fun makeResult(result: Int) {
-        Log.d(TAG, "makeResult - ok : in")
-        val i = Intent()
-        //i.putExtra(MainFragment.TODOITEM, userToDoItem)
-        requireActivity().setResult(result, i)
+    private fun createAlarm(todo: Todo) {
+        val intent = Intent(requireContext(), TodoNotificationReceiver::class.java)
+        intent.putExtra(TodoNotificationReceiver.TODOTEXT, todo.title)
+        intent.putExtra(TodoNotificationReceiver.TODOUUID, todo.identifier)
+        val am = requireActivity().getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        val pi = PendingIntent.getService(
+            requireContext(),
+            todo.identifier.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        am?.let { mgr ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && mgr.canScheduleExactAlarms()) {
+                mgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
+            } else {
+                //
+                // mgr.setExact(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
+                mgr.set(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
+            }
+        }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+
+    }
+
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        return when (menuItem.itemId) {
             android.R.id.home -> {
                 if (NavUtils.getParentActivityName(requireActivity()) != null) {
                     app.send("this", "Action", "Discard Todo")
-                    makeResult(Activity.RESULT_CANCELED)
                     NavUtils.navigateUpFromSameTask(requireActivity())
                 }
                 hideKeyboard(binding.userToDoEditText)
                 true
             }
-
-            else -> super.onOptionsItemSelected(item)
+            else -> false
         }
     }
     override fun onDateSet(view: DatePicker?, year: Int, month: Int, dayOfMonth: Int) {

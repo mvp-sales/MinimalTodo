@@ -1,7 +1,6 @@
 package com.example.avjindersinghsekhon.minimaltodo.main
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.text.format.DateFormat
@@ -10,13 +9,10 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.avjindersinghsekhon.minimaltodo.R
-import com.example.avjindersinghsekhon.minimaltodo.addToDo.AddToDoActivity
 import com.example.avjindersinghsekhon.minimaltodo.addToDo.AddToDoFragment
 import com.example.avjindersinghsekhon.minimaltodo.database.Todo
 import com.example.avjindersinghsekhon.minimaltodo.databinding.ListCircleTryBinding
 import com.example.avjindersinghsekhon.minimaltodo.utility.ItemTouchHelperClass
-import com.example.avjindersinghsekhon.minimaltodo.utility.TodoNotificationService
-import com.google.android.material.snackbar.Snackbar
 import jahirfiquitiva.libs.textdrawable.TextDrawable
 import java.util.Collections
 

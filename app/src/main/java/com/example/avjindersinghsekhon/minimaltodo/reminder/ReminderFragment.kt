@@ -7,35 +7,38 @@ import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
+import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.edit
+import androidx.core.view.MenuProvider
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import com.example.avjindersinghsekhon.minimaltodo.R
 import com.example.avjindersinghsekhon.minimaltodo.analytics.AnalyticsApplication
 import com.example.avjindersinghsekhon.minimaltodo.appDefault.AppDefaultFragment
 import com.example.avjindersinghsekhon.minimaltodo.databinding.FragmentReminderBinding
 import com.example.avjindersinghsekhon.minimaltodo.main.MainActivity
 import com.example.avjindersinghsekhon.minimaltodo.main.MainFragment
-import com.example.avjindersinghsekhon.minimaltodo.utility.StoreRetrieveData
-import com.example.avjindersinghsekhon.minimaltodo.utility.ToDoItem
-import com.example.avjindersinghsekhon.minimaltodo.utility.TodoNotificationService
-import org.json.JSONException
-import java.io.IOException
+import com.example.avjindersinghsekhon.minimaltodo.utility.TodoNotificationReceiver
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 import java.util.UUID
 
-class ReminderFragment : AppDefaultFragment() {
+@AndroidEntryPoint
+class ReminderFragment : AppDefaultFragment(), MenuProvider {
     private lateinit var snoozeOptionsArray: Array<String>
-    private lateinit var storeRetrieveData: StoreRetrieveData
-    private lateinit var toDoItems: ArrayList<ToDoItem>
-    private var item: ToDoItem? = null
     private var theme: String? = null
+    private lateinit var todoId: UUID
     private lateinit var app: AnalyticsApplication
     private lateinit var binding: FragmentReminderBinding
+    private val viewModel: ReminderViewModel by activityViewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_reminder, container, false)
@@ -52,15 +55,15 @@ class ReminderFragment : AppDefaultFragment() {
         } else {
             requireActivity().setTheme(R.style.CustomStyle_DarkTheme)
         }
-        storeRetrieveData = StoreRetrieveData(requireContext(), MainFragment.FILENAME)
-        toDoItems = MainFragment.getLocallyStoredData(storeRetrieveData)
+
+        requireActivity().addMenuProvider(this, viewLifecycleOwner)
+
         (activity as? AppCompatActivity)?.setSupportActionBar(view.findViewById<View>(R.id.toolbar) as Toolbar)
         val i = requireActivity().intent
-        val id = i.getSerializableExtra(TodoNotificationService.TODOUUID) as UUID
-        item = toDoItems.firstOrNull { it.identifier == id }
+        todoId = i.getSerializableExtra(TodoNotificationReceiver.TODOUUID) as UUID
         snoozeOptionsArray = resources.getStringArray(R.array.snooze_options)
+
         with(binding) {
-            toDoReminderTextViewBody.text = item?.toDoText
             if (theme == MainFragment.LIGHTTHEME) {
                 reminderViewSnoozeTextView.setTextColor(resources.getColor(R.color.secondary_text))
             } else {
@@ -69,16 +72,27 @@ class ReminderFragment : AppDefaultFragment() {
                     R.drawable.ic_snooze_white_24dp, 0, 0, 0
                 )
             }
-            toDoReminderRemoveButton.setOnClickListener {
-                app.send("this", "Action", "Todo Removed from Reminder Activity")
-                toDoItems.remove(item)
-                changeOccurred()
-                saveData()
-                closeApp()
+            toDoReminderRemoveButton.setOnClickListener { view ->
+                onReminderDone(view)
             }
             val adapter = ArrayAdapter(requireContext(), R.layout.spinner_text_view, snoozeOptionsArray)
             adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
             todoReminderSnoozeSpinner.adapter = adapter
+        }
+        lifecycleScope.launch {
+            viewModel.getTodo(todoId).collect {
+                binding.toDoReminderTextViewBody.text = it.title
+            }
+        }
+    }
+
+    private fun onReminderDone(view: View) {
+        app.send("this", "Action", "Todo Removed from Reminder Activity")
+        lifecycleScope.launch {
+            viewModel.deleteTodo(todoId).collect {
+                changeOccurred()
+                closeApp()
+            }
         }
     }
 
@@ -90,22 +104,37 @@ class ReminderFragment : AppDefaultFragment() {
         val i = Intent(context, MainActivity::class.java)
         i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val sharedPreferences = requireActivity().getSharedPreferences(MainFragment.SHARED_PREF_DATA_SET_CHANGED, Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putBoolean(EXIT, true)
-        editor.apply()
+        sharedPreferences.edit {
+            putBoolean(EXIT, true)
+        }
         startActivity(i)
     }
 
-    fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        requireActivity().menuInflater.inflate(R.menu.menu_reminder, menu)
-        return true
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.menu_reminder, menu)
     }
+
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean =
+        when (menuItem.itemId) {
+            R.id.toDoReminderDoneMenuItem -> {
+                val date = addTimeToDate(valueFromSpinner())
+                lifecycleScope.launch {
+                    viewModel.updateTodo(todoId, date).collect {
+                        Log.d("OskarSchindler", "Date Changed to: $date")
+                        changeOccurred()
+                        closeApp()
+                    }
+                }
+                true
+            }
+            else -> false
+        }
 
     private fun changeOccurred() {
         val sharedPreferences = requireActivity().getSharedPreferences(MainFragment.SHARED_PREF_DATA_SET_CHANGED, Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putBoolean(MainFragment.CHANGE_OCCURED, true)
-        editor.apply()
+        sharedPreferences.edit {
+            putBoolean(MainFragment.CHANGE_OCCURED, true)
+        }
     }
 
     private fun addTimeToDate(mins: Int): Date {
@@ -123,33 +152,6 @@ class ReminderFragment : AppDefaultFragment() {
             1 -> 30
             2 -> 60
             else -> 0
-        }
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.toDoReminderDoneMenuItem -> {
-                val date = addTimeToDate(valueFromSpinner())
-                this.item?.toDoDate = date
-                this.item?.hasReminder = true
-                Log.d("OskarSchindler", "Date Changed to: $date")
-                changeOccurred()
-                saveData()
-                closeApp()
-                true
-            }
-
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun saveData() {
-        try {
-            storeRetrieveData.saveToFile(toDoItems)
-        } catch (e: JSONException) {
-            e.printStackTrace()
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
     }
 

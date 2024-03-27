@@ -31,27 +31,4 @@ class MainActivity : AppDefaultActivity() {
     override fun createInitialFragment(): Fragment {
         return MainFragment.newInstance()
     }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.aboutMeMenuItem -> {
-                val i = Intent(this, AboutActivity::class.java)
-                startActivity(i)
-                true
-            }
-
-            R.id.preferences -> {
-                val intent = Intent(this, SettingsActivity::class.java)
-                startActivity(intent)
-                true
-            }
-
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
 }
