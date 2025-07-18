@@ -322,9 +322,10 @@ class AddToDoFragment : AppDefaultFragment(), MenuProvider, DatePickerDialog.OnD
     }
 
     private fun createAlarm(todo: Todo) {
-        val intent = Intent(requireContext(), TodoNotificationReceiver::class.java)
-        intent.putExtra(TodoNotificationReceiver.TODOTEXT, todo.title)
-        intent.putExtra(TodoNotificationReceiver.TODOUUID, todo.identifier)
+        val intent = Intent(requireContext(), TodoNotificationReceiver::class.java).apply {
+            putExtra(TodoNotificationReceiver.TODOTEXT, todo.title)
+            putExtra(TodoNotificationReceiver.TODOUUID, todo.identifier)
+        }
         val am = requireActivity().getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         val pi = PendingIntent.getService(
             requireContext(),
@@ -332,15 +333,26 @@ class AddToDoFragment : AppDefaultFragment(), MenuProvider, DatePickerDialog.OnD
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT
         )
-        am?.let { mgr ->
+        todo.date?.let { date ->
+            if (am != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && am.canScheduleExactAlarms()) {
+                    am.setExact(AlarmManager.RTC_WAKEUP, date.time, pi)
+                } else {
+                    am.setExact(AlarmManager.RTC_WAKEUP, date.time, pi)
+                    //am.set(AlarmManager.RTC_WAKEUP, date.time, pi)
+                }
+            }
+
+        }
+        /*am?.let { mgr ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && mgr.canScheduleExactAlarms()) {
                 mgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
             } else {
                 //
-                // mgr.setExact(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
-                mgr.set(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
+                mgr.setExact(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
+                //mgr.set(AlarmManager.RTC_WAKEUP, todo.date!!.time, pi)
             }
-        }
+        }*/
     }
 
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {

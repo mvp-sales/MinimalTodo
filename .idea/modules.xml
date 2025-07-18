@@ -2,11 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Minimal-Todo.iml" filepath="$PROJECT_DIR$/.idea/modules/Minimal-Todo.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.androidTest.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/Minimal-Todo.app.unitTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/MinimalTodo.iml" filepath="$PROJECT_DIR$/.idea/modules/MinimalTodo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/MinimalTodo.app.unitTest.iml" />
     </modules>
   </component>
 </project>
